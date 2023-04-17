@@ -9,13 +9,13 @@ packages = [{include = "railwayroutegenerator"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-yaramo = {git = "https://github.com/simulate-digital-rail/yaramo"}
+yaramo = {git = "https://github.com/antonykamp/yaramo", branch="refactor/replace-connected-nodes-with-edges"}
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.1.2"
-planpro-importer = {git = "https://github.com/simulate-digital-rail/planpro-importer"}
-orm-importer = {git = "https://github.com/simulate-digital-rail/orm-importer"}
+planpro-importer = {git = "https://github.com/antonykamp/planpro-importer", branch="refactor/replace-connected-nodes-edges"}
+orm-importer = {git = "https://github.com/antonykamp/orm-importer", branch="refactor/replace-connected-nodes-edges"}
 pylint = "^2.15.10"
 black = "^22.12.0"
 pre-commit = "^3.0.0"
