@@ -21,7 +21,7 @@ class RouteGenerator(object):
         active_signal = signals_on_edge_in_direction[0]
         current_route = Route(active_signal, maximum_speed=edge.maximum_speed)
 
-        for signal in signals_on_edge_in_direction:
+        for signal in signals_on_edge_in_direction[:1]:
             if (
                 active_signal.function != signal.function
                 or active_signal.function == SignalFunction.Block_Signal
