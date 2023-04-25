@@ -19,7 +19,7 @@ class RouteGenerator(object):
             return []  # No signals on this edge, so no start
         
         active_signal = signals_on_edge_in_direction[0]
-        current_route = Route(signal, maximum_speed=edge.maximum_speed)
+        current_route = Route(active_signal, maximum_speed=edge.maximum_speed)
 
         for signal in signals_on_edge_in_direction:
             if (
