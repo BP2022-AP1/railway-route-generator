@@ -1,3 +1,4 @@
+from typing import List
 from yaramo.model import Edge, Route
 from yaramo.signal import SignalDirection, SignalFunction
 from yaramo.topology import Topology
@@ -9,14 +10,13 @@ class RouteGenerator(object):
 
     def traverse_edge(
         self, edge: Edge, direction, current_route=None, active_signal=None
-    ):
-        routes = []
+    ) -> List[Route]:
         signals_on_edge_in_direction = edge.get_signals_with_direction_in_order(
             direction
         )
 
         if (len(signals_on_edge_in_direction) == 0):
-            return []  # No signals on this edge, so no start
+            return # No signals on this edge, so no start
         
         active_signal = signals_on_edge_in_direction[0]
         current_route = Route(active_signal, maximum_speed=edge.maximum_speed)
@@ -28,7 +28,7 @@ class RouteGenerator(object):
             ):
                 # Route ends at signal
                 current_route.end_signal = signal
-                routes.append(current_route)
+                self.routes.append(current_route)
                 # And start the next route from this signal
                 active_signal = signal
                 current_route = Route(signal, maximum_speed=edge.maximum_speed)
@@ -39,81 +39,75 @@ class RouteGenerator(object):
                 )
 
         next_node = edge.node_b
-        previous_node = edge.node_a
         if direction == SignalDirection.GEGEN:
             next_node = edge.node_a
-            previous_node = edge.node_b
 
-        possible_followers = next_node.get_possible_followers(previous_node)
-        for possible_follower in possible_followers:
-            next_edge = self.topology.get_edge_by_nodes(next_node, possible_follower)
-            next_direction = next_edge.get_direction_based_on_nodes(
-                next_node, possible_follower
+        possible_followers = next_node.get_possible_followers(edge)
+        for next_edge in possible_followers:
+            next_direction = next_edge.get_direction_based_on_start_node(
+                next_node
             )
-            routes = routes + self.traverse_edge_until_next_signals(
+            self.traverse_edge_until_next_signals(
                 next_edge, next_direction, current_route.duplicate(), active_signal
             )
-
-        return routes
     
     def traverse_edge_until_next_signals(
         self, edge: Edge, direction, current_route, active_signal
     ):
+        if edge in current_route.edges: # we are walking in a loop
+            return
+        
         current_route.edges.append(edge)
         if edge.maximum_speed is not None and (
             edge.maximum_speed < current_route.maximum_speed
         ):
             current_route.maximum_speed = edge.maximum_speed
         
-        routes = []
         signals_on_edge_in_direction = edge.get_signals_with_direction_in_order(
             direction
         )
 
         if (len(signals_on_edge_in_direction) != 0):
             current_route.end_signal = signals_on_edge_in_direction[0]
-            routes.append(current_route)
-            return routes
+            self.routes.append(current_route)
+            return
         
         next_node = edge.node_b
-        previous_node = edge.node_a
         if direction == SignalDirection.GEGEN:
             next_node = edge.node_a
-            previous_node = edge.node_b
 
-        possible_followers = next_node.get_possible_followers(previous_node)
-        for possible_follower in possible_followers:
-            next_edge = self.topology.get_edge_by_nodes(next_node, possible_follower)
-            next_direction = next_edge.get_direction_based_on_nodes(
-                next_node, possible_follower
+        possible_followers = next_node.get_possible_followers(edge)
+        for next_edge in possible_followers:
+            next_direction = next_edge.get_direction_based_on_start_node(
+                next_node
             )
-            routes = routes + self.traverse_edge_until_next_signals(
+            self.traverse_edge_until_next_signals(
                 next_edge, next_direction, current_route.duplicate(), active_signal
             )
 
-        return routes
-
     def generate_routes(self):
-        routes = []
-        for edge_uuid in self.topology.edges:
-            edge = self.topology.edges[edge_uuid]
-            routes = routes + self.traverse_edge(edge, SignalDirection.IN)
-            routes = routes + self.traverse_edge(edge, SignalDirection.GEGEN)
+        self.routes = []
+        for edge in self.topology.edges.values():
+            self.traverse_edge(edge, SignalDirection.IN)
+            self.traverse_edge(edge, SignalDirection.GEGEN)
 
         # Filter duplicates
         filtered_routes = []
-        for route in routes:
+        for route in self.routes:
             should_be_added = True
-            for filtered_route in filtered_routes:
-                if (
-                    route.start_signal.uuid == filtered_route.start_signal.uuid
-                    and route.end_signal.uuid == filtered_route.end_signal.uuid
-                ):
-                    if route.get_length() < filtered_route.get_length():
-                        filtered_routes.remove(filtered_route)
-                    else:
-                        should_be_added = False
+            if route.start_signal.uuid == route.end_signal.uuid:
+                should_be_added = False
+            else:
+                for filtered_route in filtered_routes:
+                    if (
+                        route.start_signal.uuid == filtered_route.start_signal.uuid
+                        and route.end_signal.uuid == filtered_route.end_signal.uuid
+                    ):
+                        if route.get_length() < filtered_route.get_length():
+                            filtered_routes.remove(filtered_route)
+                        else:
+                            should_be_added = False
             if should_be_added:
                 filtered_routes.append(route)
 
-        self.topology.routes = {route.uuid: route for route in filtered_routes}
+        self.topology.routes = {route.uuid: route for route in self.routes}
